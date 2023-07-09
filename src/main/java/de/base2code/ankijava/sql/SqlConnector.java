@@ -58,6 +58,9 @@ public class SqlConnector {
                 "1_cards.sql",
                 "2_collection.sql",
                 "3_notes.sql",
+                "4_graves.sql",
+                "5_revlog.sql",
+                "6_indexes.sql",
         }).toList());
 
         for (String patchFile : patchFiles) {

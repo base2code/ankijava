@@ -1,4 +1,4 @@
-package de.base2code.ankijava.db.model;
+package de.base2code.ankijava.model.db;
 
 public class DbNote {
     private int id;

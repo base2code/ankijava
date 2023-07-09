@@ -1,6 +1,6 @@
 package de.base2code.ankijava.sql.stmt;
 
-import de.base2code.ankijava.db.model.DbCard;
+import de.base2code.ankijava.model.db.DbCard;
 import de.chojo.sadu.base.QueryFactory;
 import de.chojo.sadu.wrapper.util.UpdateResult;
 

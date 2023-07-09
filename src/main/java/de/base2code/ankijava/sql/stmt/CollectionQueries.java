@@ -1,6 +1,6 @@
 package de.base2code.ankijava.sql.stmt;
 
-import de.base2code.ankijava.db.model.DbCollection;
+import de.base2code.ankijava.model.db.DbCollection;
 import de.chojo.sadu.base.QueryFactory;
 import de.chojo.sadu.wrapper.util.UpdateResult;
 
@@ -51,6 +51,38 @@ public class CollectionQueries extends QueryFactory {
                                         .setString(dbCollection.getTags())
                 )
                 .insert()
+                .send()
+                .thenApply(UpdateResult::changed);
+    }
+
+    public CompletableFuture<Boolean> updateModels(int dbCollectionId, String models) {
+        System.out.printf("Updating models for collection %d: %s%n", dbCollectionId, models);
+        return builder(Boolean.class)
+                .query("""
+                        UPDATE col SET models = ? WHERE id = ?
+                        """)
+                .parameter(
+                        stmt ->
+                                stmt.setString(models)
+                                        .setInt(dbCollectionId)
+                )
+                .update()
+                .send()
+                .thenApply(UpdateResult::changed);
+    }
+
+    public CompletableFuture<Boolean> updateDecks(int dbCollectionId, String decks) {
+        System.out.printf("Updating decks for collection %d: %s%n", dbCollectionId, decks);
+        return builder(Boolean.class)
+                .query("""
+                        UPDATE col SET decks = ? WHERE id = ?
+                        """)
+                .parameter(
+                        stmt ->
+                                stmt.setString(decks)
+                                        .setInt(dbCollectionId)
+                )
+                .update()
                 .send()
                 .thenApply(UpdateResult::changed);
     }

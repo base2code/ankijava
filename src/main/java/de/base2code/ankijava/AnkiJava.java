@@ -1,36 +1,58 @@
 package de.base2code.ankijava;
 
-import de.base2code.ankijava.db.model.DbCard;
-import de.base2code.ankijava.db.model.DbCollection;
-import de.base2code.ankijava.db.model.DbNote;
+import com.google.gson.Gson;
+import de.base2code.ankijava.model.db.DbCard;
+import de.base2code.ankijava.model.db.DbCollection;
+import de.base2code.ankijava.model.db.DbNote;
+import de.base2code.ankijava.model.json.JsonDeck;
+import de.base2code.ankijava.model.json.JsonModel;
 import de.base2code.ankijava.sql.SqlConnector;
 import de.base2code.ankijava.sql.stmt.CardQueries;
 import de.base2code.ankijava.sql.stmt.CollectionQueries;
 import de.base2code.ankijava.sql.stmt.NoteQueries;
-import de.base2code.ankijava.utils.Utils;
+import org.json.JSONObject;
 
 import java.io.File;
-import java.io.InputStream;
-import java.net.URL;
-import java.security.CodeSource;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
-import java.util.zip.ZipInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class AnkiJava {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         File dbFile = new File("anki.db");
         if (dbFile.exists()) {
             dbFile.delete();
         }
         AnkiJava ankiJava = new AnkiJava(new SqlConnector(dbFile));
         ankiJava.sqlConnector.createInitialTables();
-        ankiJava.createCollection();
-        ankiJava.createNote();
+        int collectionId = (int) System.currentTimeMillis() / 1000;
+        ankiJava.createCollection(collectionId);
+        int modelId = (int) System.currentTimeMillis() / 1000;
+        int deckId = (int) System.currentTimeMillis() / 1000;
+        ankiJava.createNote("Front", "Back", modelId, deckId, collectionId);
         ankiJava.createCard();
 
         ankiJava.sqlConnector.disconnect();
+
+        Map<String, String> env = new HashMap<>();
+// Create the zip file if it doesn't exist
+        env.put("create", "true");
+
+        Files.write(Path.of("media"), "{}".getBytes());
+
+        try (FileSystem zipfs = FileSystems.newFileSystem(URI.create("jar:file:/Users/niklasgrenningloh/dev/private/ankijava/asd.apkg"),env)) {
+            Path externalTxtFile = Path.of("anki.db");
+            Path pathInZipfile = zipfs.getPath("/collection.anki2");
+            // Copy a file into the zip file
+            Files.copy(externalTxtFile, pathInZipfile, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(Path.of("media"), zipfs.getPath("/media"), StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     private SqlConnector sqlConnector;
@@ -40,8 +62,7 @@ public class AnkiJava {
         sqlConnector.connect();
     }
 
-    public DbCollection createCollection() {
-        int id = 0;
+    public DbCollection createCollection(int id) {
         DbCollection dbCollection = new DbCollection(
             id,
                 (int) (System.currentTimeMillis() / 1000),
@@ -64,8 +85,8 @@ public class AnkiJava {
         return dbCollection;
     }
 
-    public DbNote createNote(String key, String value, int modelId) {
-        int id = 0;
+    public DbNote createNote(String key, String value, int modelId, int deckId, int collectionId) {
+        int id = (int) System.currentTimeMillis() / 1000;
         String flds = key + "\u001F" + value;
         DbNote dbNote = new DbNote(
             id,
@@ -73,17 +94,42 @@ public class AnkiJava {
                 modelId, // Model id
                 (int) System.currentTimeMillis() / 1000,
                 -1,
-                "{}",
+                "",
                 flds,
                 key,
-                Utils.sha1Start(flds),
+                0, // Can be ignored. See https://github.com/kerrickstaley/genanki/blob/0fa4f74f100c24738d3fbb542e3c81c07e5d6bf5/genanki/note.py#L164
                 0,
-                "{}"
+                ""
         );
 
         new NoteQueries(sqlConnector.getDataSource()).insertNote(
             dbNote
         ).join();
+
+
+        JsonModel.JsonField jsonField1 = new JsonModel.JsonField("Front 10", 0);
+        JsonModel.JsonField jsonField2 = new JsonModel.JsonField("Back 10", 1);
+        JsonModel.JsonField[] jsonFields = new JsonModel.JsonField[]{jsonField1, jsonField2};
+
+        JsonModel.JsonTmpls jsonTmpls = new JsonModel.JsonTmpls("Card 1", 0);
+        JsonModel.JsonTmpls[] jsonTmplsArray = new JsonModel.JsonTmpls[]{jsonTmpls};
+
+        JsonModel jsonModel = new JsonModel(deckId, jsonFields, modelId, "Model", jsonTmplsArray);
+
+        JSONObject jsonObject = new JSONObject();
+        JSONObject model = new JSONObject(new Gson().toJson(jsonModel));
+        jsonObject.put(String.valueOf(jsonModel.getId()), model);
+
+        String models = jsonObject.toString();
+        new CollectionQueries(sqlConnector.getDataSource()).updateModels(collectionId, models).join();
+
+        JsonDeck jsonDeck = new JsonDeck("Test", (int) System.currentTimeMillis() / 1000, "Desc");
+        JSONObject jsonObjectDeck = new JSONObject();
+        JSONObject deck = new JSONObject(new Gson().toJson(jsonDeck));
+        jsonObjectDeck.put(String.valueOf(deckId), deck);
+
+        String decks = jsonObjectDeck.toString();
+        new CollectionQueries(sqlConnector.getDataSource()).updateDecks(collectionId, decks).join();
 
         return dbNote;
     }

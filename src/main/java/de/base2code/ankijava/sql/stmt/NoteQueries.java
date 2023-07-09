@@ -1,6 +1,6 @@
 package de.base2code.ankijava.sql.stmt;
 
-import de.base2code.ankijava.db.model.DbNote;
+import de.base2code.ankijava.model.db.DbNote;
 import de.chojo.sadu.base.QueryFactory;
 import de.chojo.sadu.wrapper.util.UpdateResult;
 
@@ -39,7 +39,7 @@ public class NoteQueries extends QueryFactory {
                                     .setInt(note.getUsn())
                                     .setString(note.getTags())
                                     .setString(note.getFlds())
-                                    .setInt(note.getSfld())
+                                    .setString(note.getSfld())
                                     .setInt(note.getCsum())
                                     .setInt(note.getFlags())
                                     .setString(note.getData())
